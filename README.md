@@ -8,4 +8,6 @@ components                           |                             qty
 at89s52                                                             1
 4x4 matrix keypad                                                   1
 lcd JHD1602A module                                                 1
-Jumper Wires                                                        depends on the requirements
+Jumper Wires                                            depends on the requirements
+
+#the software used for generating hex file and overall project was keil uvision 4 and the code was burned using an universal ic burner
