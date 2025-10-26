@@ -1,0 +1,285 @@
+C51 COMPILER V9.01   EVM_C                                                                 10/26/2025 21:42:42 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE EVM_C
+OBJECT MODULE PLACED IN evm_c.OBJ
+COMPILER INVOKED BY: C:\Keil\C51\BIN\C51.EXE evm_c.c BROWSE DEBUG OBJECTEXTEND TABS(2)
+
+line level    source
+
+   1          #include <reg52.h>
+   2          #include <stdio.h>
+   3          
+   4          //==================================================
+   5          // HARDWARE PIN DEFINITIONS (Based on your final wiring)
+   6          //==================================================
+   7          
+   8          // LCD Connections (8-Bit Mode)
+   9          #define LCD_DATA_PORT P2      // Data Port for 8-bit mode
+  10          sbit LCD_RS = P3^2;           // Register Select pin
+  11          sbit LCD_RW = P3^3;           // Read/Write pin
+  12          sbit LCD_E  = P3^4;           // Enable pin
+  13          
+  14          // Keypad Connections
+  15          sbit KEY_R1 = P1^0;
+  16          sbit KEY_R2 = P1^1;
+  17          sbit KEY_R3 = P1^2;
+  18          sbit KEY_R4 = P1^3;
+  19          sbit KEY_C1 = P1^4;
+  20          sbit KEY_C2 = P1^5;
+  21          sbit KEY_C3 = P1^6;
+  22          sbit KEY_C4 = P1^7;
+  23          
+  24          // Buzzer Connection (NEW)
+  25          sbit BUZZER = P3^5;           // Buzzer connected to P3.5
+  26          
+  27          //==================================================
+  28          // FUNCTION PROTOTYPES
+  29          //==================================================
+  30          void delay_ms(unsigned int ms);
+  31          void lcd_send_command(unsigned char cmd);
+  32          void lcd_send_data(unsigned char data_val);
+  33          void lcd_init(void);
+  34          void lcd_string(char *str);
+  35          void lcd_goto_xy(unsigned char row, unsigned char col);
+  36          void lcd_int(unsigned int num);
+  37          char get_key(void);
+  38          void show_results(void);
+  39          void beep(void); // NEW: Prototype for the buzzer function
+  40          
+  41          //==================================================
+  42          // GLOBAL VARIABLES
+  43          //==================================================
+  44          int vote_count[4] = {0, 0, 0, 0}; // P1, P2, P3, P4
+  45          
+  46          //==================================================
+  47          // MAIN FUNCTION
+  48          //==================================================
+  49          void main() {
+  50   1          char key;
+  51   1      
+  52   1          lcd_init();
+  53   1          BUZZER = 0; // Ensure buzzer is off at startup
+  54   1      
+  55   1          // Startup Message
+C51 COMPILER V9.01   EVM_C                                                                 10/26/2025 21:42:42 PAGE 2   
+
+  56   1          lcd_goto_xy(0, 2);
+  57   1          lcd_string("Electronic");
+  58   1          lcd_goto_xy(1, 1);
+  59   1          lcd_string("Voting Machine");
+  60   1          delay_ms(2000);
+  61   1      
+  62   1          while(1) {
+  63   2              // Main Voting Loop
+  64   2              lcd_send_command(0x01); // Clear screen
+  65   2              lcd_goto_xy(0, 0);
+  66   2              lcd_string("P1(1) P2(2)");
+  67   2              lcd_goto_xy(1, 0);
+  68   2              lcd_string("P3(3) P4(4) #=Res");
+  69   2      
+  70   2              key = get_key(); // Wait for a key press
+  71   2      
+  72   2              switch(key) {
+  73   3                  case '1': vote_count[0]++; break;
+  74   3                  case '2': vote_count[1]++; break;
+  75   3                  case '3': vote_count[2]++; break;
+  76   3                  case '4': vote_count[3]++; break;
+  77   3                  case '#':
+  78   3                      show_results();
+  79   3                      while(1); // Halt after showing results
+  80   3                  default:
+  81   3                      continue; // Ignore other keys
+  82   3              }
+  83   2      
+  84   2              // Acknowledge the vote
+  85   2              beep(); // NEW: Beep to provide audio feedback
+  86   2              lcd_send_command(0x01);
+  87   2              lcd_goto_xy(0, 3);
+  88   2              lcd_string("Thank You!");
+  89   2              lcd_goto_xy(1, 1);
+  90   2              lcd_string("Please Wait...");
+  91   2              delay_ms(1500);
+  92   2          }
+  93   1      }
+  94          
+  95          //==================================================
+  96          // APPLICATION-SPECIFIC FUNCTIONS
+  97          //==================================================
+  98          
+  99          // UPDATED: This function now generates a square wave to drive a
+ 100          // passive buzzer. It rapidly toggles the pin ON and OFF.
+ 101          void beep(void) {
+ 102   1          unsigned int i;
+ 103   1          // Loop for about 150ms to control the duration of the beep
+ 104   1          for(i = 0; i < 150; i++) {
+ 105   2              BUZZER = 1;     // Set pin HIGH
+ 106   2              delay_ms(1);    // Wait 1ms
+ 107   2              BUZZER = 0;     // Set pin LOW
+ 108   2              delay_ms(1);    // Wait 1ms
+ 109   2          }
+ 110   1      }
+ 111          
+ 112          
+ 113          void show_results() {
+ 114   1          int i, max_votes = -1, winner = 0, tie = 0;
+ 115   1      
+ 116   1          lcd_send_command(0x01);
+ 117   1          lcd_goto_xy(0, 0);
+C51 COMPILER V9.01   EVM_C                                                                 10/26/2025 21:42:42 PAGE 3   
+
+ 118   1          lcd_string("P1  P2  P3  P4");
+ 119   1          lcd_goto_xy(1, 0);
+ 120   1      
+ 121   1          lcd_int(vote_count[0]);
+ 122   1          lcd_goto_xy(1, 4);
+ 123   1          lcd_int(vote_count[1]);
+ 124   1          lcd_goto_xy(1, 8);
+ 125   1          lcd_int(vote_count[2]);
+ 126   1          lcd_goto_xy(1, 12);
+ 127   1          lcd_int(vote_count[3]);
+ 128   1          delay_ms(4000);
+ 129   1      
+ 130   1          for (i = 0; i < 4; i++) {
+ 131   2              if (vote_count[i] > max_votes) {
+ 132   3                  max_votes = vote_count[i];
+ 133   3                  winner = i + 1;
+ 134   3                  tie = 0;
+ 135   3              } else if (vote_count[i] == max_votes && max_votes > 0) {
+ 136   3                  tie = 1;
+ 137   3              }
+ 138   2          }
+ 139   1      
+ 140   1          lcd_send_command(0x01);
+ 141   1          lcd_goto_xy(0, 2);
+ 142   1          if (tie == 1) {
+ 143   2              lcd_string("It's a TIE!");
+ 144   2          } else {
+ 145   2              lcd_string("Winner is: P");
+ 146   2              lcd_send_data(winner + '0');
+ 147   2          }
+ 148   1      }
+ 149          
+ 150          char get_key(void) {
+ 151   1          // FIX: The key map has been re-arranged to match your specific
+ 152   1          // keypad wiring. This will correct the issue where pressing a key
+ 153   1          // gave the wrong input.
+ 154   1          const unsigned char key_map[4][4] = {
+ 155   1              {'1', '2', '3', 'A'},
+ 156   1              {'#', '5', '6', '3'},
+ 157   1              {'7', '8', '9', '2'},
+ 158   1              {'*', '0', '4', '1'}
+ 159   1          };
+ 160   1          delay_ms(100); // Debounce delay
+ 161   1      
+ 162   1          while(1) {
+ 163   2              // Scan Row 1
+ 164   2              KEY_R1=0; KEY_R2=1; KEY_R3=1; KEY_R4=1;
+ 165   2              if(KEY_C1==0) { while(KEY_C1==0); return key_map[0][0]; }
+ 166   2              if(KEY_C2==0) { while(KEY_C2==0); return key_map[0][1]; }
+ 167   2              if(KEY_C3==0) { while(KEY_C3==0); return key_map[0][2]; }
+ 168   2              if(KEY_C4==0) { while(KEY_C4==0); return key_map[0][3]; }
+ 169   2      
+ 170   2              // Scan Row 2
+ 171   2              KEY_R1=1; KEY_R2=0; KEY_R3=1; KEY_R4=1;
+ 172   2              if(KEY_C1==0) { while(KEY_C1==0); return key_map[1][0]; }
+ 173   2              if(KEY_C2==0) { while(KEY_C2==0); return key_map[1][1]; }
+ 174   2              if(KEY_C3==0) { while(KEY_C3==0); return key_map[1][2]; }
+ 175   2              if(KEY_C4==0) { while(KEY_C4==0); return key_map[1][3]; }
+ 176   2      
+ 177   2              // Scan Row 3
+ 178   2              KEY_R1=1; KEY_R2=1; KEY_R3=0; KEY_R4=1;
+ 179   2              if(KEY_C1==0) { while(KEY_C1==0); return key_map[2][0]; }
+C51 COMPILER V9.01   EVM_C                                                                 10/26/2025 21:42:42 PAGE 4   
+
+ 180   2              if(KEY_C2==0) { while(KEY_C2==0); return key_map[2][1]; }
+ 181   2              if(KEY_C3==0) { while(KEY_C3==0); return key_map[2][2]; }
+ 182   2              if(KEY_C4==0) { while(KEY_C4==0); return key_map[2][3]; }
+ 183   2      
+ 184   2              // Scan Row 4
+ 185   2              KEY_R1=1; KEY_R2=1; KEY_R3=1; KEY_R4=0;
+ 186   2              if(KEY_C1==0) { while(KEY_C1==0); return key_map[3][0]; }
+ 187   2              if(KEY_C2==0) { while(KEY_C2==0); return key_map[3][1]; }
+ 188   2              if(KEY_C3==0) { while(KEY_C3==0); return key_map[3][2]; }
+ 189   2              if(KEY_C4==0) { while(KEY_C4==0); return key_map[3][3]; }
+ 190   2          }
+ 191   1      }
+ 192          
+ 193          //==================================================
+ 194          // LCD DRIVER FUNCTIONS (8-BIT MODE)
+ 195          //==================================================
+ 196          
+ 197          void lcd_init(void) {
+ 198   1          delay_ms(20);
+ 199   1          lcd_send_command(0x38); // Function Set: 8-bit mode, 2 lines, 5x7 font
+ 200   1          lcd_send_command(0x0C); // Display ON, Cursor OFF
+ 201   1          lcd_send_command(0x01); // Clear display screen
+ 202   1          lcd_send_command(0x06); // Entry Mode: Increment cursor
+ 203   1      }
+ 204          
+ 205          void lcd_send_command(unsigned char cmd) {
+ 206   1          LCD_DATA_PORT = cmd;
+ 207   1          LCD_RS = 0; // RS=0 for command
+ 208   1          LCD_RW = 0; // RW=0 for write
+ 209   1          LCD_E  = 1; // Pulse Enable
+ 210   1          delay_ms(1);
+ 211   1          LCD_E  = 0;
+ 212   1          delay_ms(2);
+ 213   1      }
+ 214          
+ 215          void lcd_send_data(unsigned char data_val) {
+ 216   1          LCD_DATA_PORT = data_val;
+ 217   1          LCD_RS = 1; // RS=1 for data
+ 218   1          LCD_RW = 0; // RW=0 for write
+ 219   1          LCD_E  = 1; // Pulse Enable
+ 220   1          delay_ms(1);
+ 221   1          LCD_E  = 0;
+ 222   1          delay_ms(2);
+ 223   1      }
+ 224          
+ 225          void lcd_string(char *str) {
+ 226   1          while(*str != '\0') {
+ 227   2              lcd_send_data(*str);
+ 228   2              str++;
+ 229   2          }
+ 230   1      }
+ 231          
+ 232          void lcd_goto_xy(unsigned char row, unsigned char col) {
+ 233   1          unsigned char address;
+ 234   1          if (row == 0) {
+ 235   2              address = 0x80 + col;
+ 236   2          } else {
+ 237   2              address = 0xC0 + col;
+ 238   2          }
+ 239   1          lcd_send_command(address);
+ 240   1      }
+ 241          
+C51 COMPILER V9.01   EVM_C                                                                 10/26/2025 21:42:42 PAGE 5   
+
+ 242          void lcd_int(unsigned int num) {
+ 243   1          char buffer[6];
+ 244   1          sprintf(buffer, "%u", num); // Use sprintf to convert int to string
+ 245   1          lcd_string(buffer);
+ 246   1      }
+ 247          
+ 248          void delay_ms(unsigned int ms) {
+ 249   1          unsigned int i, j;
+ 250   1          for (i = 0; i < ms; i++) {
+ 251   2              for (j = 0; j < 120; j++); // Calibrated for ~12MHz crystal
+ 252   2          }
+ 253   1      }
+ 254          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    849    ----
+   CONSTANT SIZE    =    141    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      8      34
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
